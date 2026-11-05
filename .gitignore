@@ -13,3 +13,13 @@ __pycache__/
 *.sqlite3
 backups/
 .DS_Store
+
+# Temporary development backups
+*.backup
+*.backup.*
+*.before_*
+
+# Temporary backup files and Python cache
+*.backup*
+*.before_*
+__pycache__/

@@ -1,14 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  LayoutDashboard, ShoppingCart, Package, Factory, Users, Calculator,
+import { LayoutDashboard, ShoppingCart, Package, Factory, Users, Calculator,
   CalendarCheck, BarChart3, Settings, Search, Bell, Plus,
   Clock3, Boxes, ClipboardList, FileText, Menu, X,
-  Trash2, Pencil, Download, RefreshCw, CheckCircle2
-} from "lucide-react";
+  Trash2, Pencil, Download, RefreshCw, CheckCircle2, PhoneCall, ClipboardCheck, Building2, PackageCheck } from "lucide-react";
 import "./index.css";
 import Calculators from "./Calculators";
 
 import Products from "./Products";
+import Customers from "./Customers";
+import Enquiries from "./Enquiries";
+import Calling from "./Calling";
+import Quotations from "./Quotations";
+import SalesOrders from "./SalesOrders";
+import Vendors from "./Vendors";
+import PurchaseOrders from "./PurchaseOrders";
+import GoodsReceipts from "./GoodsReceipts";
+import InventoryControl from "./InventoryControl";
+import Production from "./Production";
+import QualityControl from "./QualityControl";
+import Dispatch from "./Dispatch";
+import Finance from "./Finance";
+import Accounting from "./Accounting";
 import Login from "./Login";
 import { getCurrentUser, logout } from "./auth";
 import { showSuccess, showError, showWarning, showConfirm } from "./utils/alerts";
@@ -16,9 +28,22 @@ const API = "http://127.0.0.1:8000";
 
 const modules = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "customers", label: "Customers", icon: Users },
+  { id: "enquiries", label: "Enquiries", icon: ClipboardList },
+  { id: "calling", label: "Calling & Follow-ups", icon: PhoneCall },
+  { id: "quotations", label: "Quotations", icon: FileText },
+  { id: "salesorders", label: "Sales Orders", icon: ClipboardCheck },
+  { id: "vendors", label: "Vendors", icon: Building2 },
+  { id: "purchaseorders", label: "Purchase Orders", icon: ShoppingCart },
+  { id: "goodsreceipts", label: "Goods Receipts (GRN)", icon: PackageCheck },
+  { id: "inventorycontrol", label: "Inventory Control", icon: Package },
   { id: "orders", label: "Orders", icon: ShoppingCart },
   { id: "inventory", label: "Inventory", icon: Package },
   { id: "production", label: "Production", icon: Factory },
+  { id: "qualitycontrol", label: "Quality Control", icon: ClipboardCheck },
+  { id: "dispatch", label: "Dispatch & Delivery", icon: ClipboardCheck },
+  { id: "accounting", label: "General Accounting", icon: Calculator },
+  { id: "finance", label: "Finance & Invoicing", icon: FileText },
   { id: "employees", label: "Employees & Tasks", icon: Users },
   { id: "attendance", label: "Attendance & Payroll", icon: CalendarCheck },
   { id: "calculators", label: "Calculators", icon: Calculator },
@@ -301,7 +326,7 @@ function Workspace({ onLogout }) {
         <div className="content">
           {error && <div className="alert error">{error}</div>}
 
-          {active === "inventory" ? (<Products />) : active === "dashboard" ? (
+          {active === "accounting" ? (<Accounting />) : active === "finance" ? (<Finance />) : active === "dispatch" ? (<Dispatch />) : active === "qualitycontrol" ? (<QualityControl />) : active === "production" ? (<Production />) : active === "inventorycontrol" ? (<InventoryControl />) : active === "goodsreceipts" ? (<GoodsReceipts />) : active === "purchaseorders" ? (<PurchaseOrders />) : active === "vendors" ? (<Vendors />) : active === "salesorders" ? (<SalesOrders />) : active === "quotations" ? (<Quotations />) : active === "calling" ? (<Calling />) : active === "customers" ? (<Customers />) : active === "enquiries" ? (<Enquiries />) : active === "inventory" ? (<Products />) : active === "dashboard" ? (
             <>
               <div className="page-heading">
                 <div><label>BUSINESS OVERVIEW</label><h1>Good morning, Administrator</h1><p>Here is what's happening in your business today.</p></div>

@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Search, Plus, Package, BriefcaseBusiness, Boxes,
   RefreshCw, X, Save, Pencil, Power, Tag, Ruler,
-  AlertCircle, CheckCircle2
+  AlertCircle, CheckCircle2, Download, Upload
 } from "lucide-react";
 import { apiFetch } from "./auth";
+import * as XLSX from "xlsx";
 import {
   showSuccess,
   showError,
@@ -38,6 +39,9 @@ export default function Products({ companyId }) {
   const [auxForm, setAuxForm] = useState({
     code: "", name: "", symbol: "", decimal_places: 2
   });
+  const [sortBy, setSortBy] = useState("name-asc");
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef(null);
 
   const activeCompanyId = companyId || resolvedCompanyId;
   const base = `/api/core/companies/${activeCompanyId}`;
@@ -273,7 +277,235 @@ export default function Products({ companyId }) {
     }
   };
 
-  const filtered = products.filter(item => {
+  const activate = async (item) => {
+    const confirmed = await showConfirm(
+      "Activate item?",
+      `Are you sure you want to activate "${item.name}"?`,
+      "Yes, activate"
+    );
+
+    if (!confirmed) return;
+    try {
+      await request(`/api/core/products/${item.id}/activate`, {
+        method: "PATCH"
+      });
+      notify("Item activated.");
+      await loadData();
+    } catch (error) {
+      notify(error.message, "error");
+    }
+  };
+
+
+  const exportProducts = () => {
+    try {
+      const rows = filtered.map(item => {
+        const unit = units.find(u => u.id === item.unit_id);
+        const category = categories.find(c => c.id === item.category_id);
+        return {
+          "SKU": item.sku || "",
+          "Name": item.name || "",
+          "Item Type": item.item_type || "product",
+          "Unit Code": unit?.code || "",
+          "Category Code": category?.code || "",
+          "Barcode": item.barcode || "",
+          "Description": item.description || "",
+          "Purchase Price": Number(item.purchase_price || 0),
+          "Selling Price": Number(item.selling_price || 0),
+          "Tax Rate": Number(item.tax_rate || 0),
+          "Currency": item.currency || "INR",
+          "Track Inventory": Boolean(item.track_inventory),
+          "Tax Inclusive": Boolean(item.tax_inclusive),
+          "Active": Boolean(item.is_active)
+        };
+      });
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      worksheet["!cols"] = [
+        { wch: 18 }, { wch: 30 }, { wch: 15 }, { wch: 14 },
+        { wch: 18 }, { wch: 18 }, { wch: 40 }, { wch: 16 },
+        { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 16 },
+        { wch: 14 }, { wch: 12 }
+      ];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
+      XLSX.writeFile(workbook, "ERP-Products-Export.xlsx");
+      showSuccess("Export successful", `${rows.length} catalogue items exported to Excel.`);
+    } catch (error) {
+      showError("Export failed", error.message || "Could not export the catalogue.");
+    }
+  };
+
+  const downloadImportTemplate = () => {
+    const template = [{
+      "SKU": "ITEM-001",
+      "Name": "Sample Product",
+      "Item Type": "product",
+      "Unit Code": units[0]?.code || "PCS",
+      "Category Code": "",
+      "Barcode": "",
+      "Description": "",
+      "Purchase Price": 100,
+      "Selling Price": 150,
+      "Tax Rate": 18,
+      "Currency": "INR",
+      "Track Inventory": true,
+      "Tax Inclusive": false
+    }];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.json_to_sheet(template),
+      "Products"
+    );
+    XLSX.writeFile(workbook, "ERP-Products-Import-Template.xlsx");
+  };
+
+  const handleImport = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const confirmed = await showConfirm(
+      "Import catalogue items?",
+      "Existing SKUs will be skipped. New rows will be validated and created; existing items will not be overwritten.",
+      "Continue import"
+    );
+    if (!confirmed) {
+      event.target.value = "";
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+
+      if (!rows.length) {
+        showWarning("Empty spreadsheet", "The selected worksheet contains no item rows.");
+        return;
+      }
+
+      const header = row => {
+        const result = {};
+        Object.entries(row).forEach(([key, value]) => {
+          result[String(key).trim().toLowerCase()] = value;
+        });
+        return result;
+      };
+      const truthy = value =>
+        value === true || ["true", "yes", "1", "y"].includes(String(value).trim().toLowerCase());
+      const existingSkus = new Set(products.map(p => String(p.sku || "").trim().toLowerCase()));
+      let imported = 0;
+      let skipped = 0;
+      const errors = [];
+
+      for (let index = 0; index < rows.length; index++) {
+        const row = header(rows[index]);
+        const line = index + 2;
+        const sku = String(row.sku || "").trim();
+        const name = String(row.name || "").trim();
+
+        if (!sku || !name) {
+          errors.push(`Row ${line}: SKU and Name are required.`);
+          continue;
+        }
+
+        const normalizedSku = sku.toLowerCase();
+        if (existingSkus.has(normalizedSku)) {
+          skipped++;
+          continue;
+        }
+
+        const itemType = String(row["item type"] || "product").trim().toLowerCase();
+        if (!["product", "service", "digital"].includes(itemType)) {
+          errors.push(`Row ${line}: Item Type must be product, service or digital.`);
+          continue;
+        }
+
+        const unitCode = String(row["unit code"] || "").trim().toLowerCase();
+        const unit = units.find(u =>
+          String(u.code || "").trim().toLowerCase() === unitCode ||
+          String(u.symbol || "").trim().toLowerCase() === unitCode ||
+          String(u.name || "").trim().toLowerCase() === unitCode
+        );
+        if (!unit) {
+          errors.push(`Row ${line}: Unit Code "${unitCode || "(blank)"}" was not found. Create the unit first.`);
+          continue;
+        }
+
+        const categoryCode = String(row["category code"] || "").trim().toLowerCase();
+        const category = categoryCode
+          ? categories.find(c =>
+              String(c.code || "").trim().toLowerCase() === categoryCode ||
+              String(c.name || "").trim().toLowerCase() === categoryCode
+            )
+          : null;
+
+        if (categoryCode && !category) {
+          errors.push(`Row ${line}: Category Code "${categoryCode}" was not found.`);
+          continue;
+        }
+
+        const purchasePrice = Number(row["purchase price"] || 0);
+        const sellingPrice = Number(row["selling price"] || 0);
+        const taxRate = Number(row["tax rate"] || 0);
+
+        if (
+          !Number.isFinite(purchasePrice) || purchasePrice < 0 ||
+          !Number.isFinite(sellingPrice) || sellingPrice < 0 ||
+          !Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100
+        ) {
+          errors.push(`Row ${line}: Prices must be non-negative and tax must be between 0 and 100.`);
+          continue;
+        }
+
+        try {
+          await request(`${base}/products`, {
+            method: "POST",
+            body: JSON.stringify({
+              sku,
+              name,
+              item_type: itemType,
+              unit_id: unit.id,
+              category_id: category?.id || null,
+              barcode: String(row.barcode || "").trim() || null,
+              description: String(row.description || "").trim(),
+              purchase_price: purchasePrice,
+              selling_price: sellingPrice,
+              tax_rate: taxRate,
+              currency: String(row.currency || "INR").trim().toUpperCase().slice(0, 3),
+              track_inventory: itemType === "product" && truthy(row["track inventory"]),
+              tax_inclusive: truthy(row["tax inclusive"])
+            })
+          });
+          existingSkus.add(normalizedSku);
+          imported++;
+        } catch (error) {
+          errors.push(`Row ${line} (${sku}): ${error.message}`);
+        }
+      }
+
+      await loadData();
+      if (errors.length) {
+        showWarning(
+          "Import completed with issues",
+          `${imported} imported, ${skipped} duplicate SKUs skipped, ${errors.length} row errors.\n\n${errors.slice(0, 8).join("\n")}${errors.length > 8 ? "\nMore errors omitted." : ""}`
+        );
+      } else {
+        showSuccess(
+          "Import successful",
+          `${imported} items imported. ${skipped} existing duplicate SKUs skipped.`
+        );
+      }
+    } catch (error) {
+      showError("Import failed", error.message || "Could not read this Excel file.");
+    } finally {
+      setImporting(false);
+      event.target.value = "";
+    }
+  };
+
+  const filteredItems = products.filter(item => {
     const term = search.toLowerCase();
     const matchesSearch =
       item.name.toLowerCase().includes(term) ||
@@ -285,6 +517,20 @@ export default function Products({ companyId }) {
       (filter === "inactive" && !item.is_active) ||
       item.item_type === filter;
     return matchesSearch && matchesFilter;
+  });
+
+  const filtered = [...filteredItems].sort((a, b) => {
+    const nameCompare = String(a.name || "").localeCompare(String(b.name || ""));
+    const skuCompare = String(a.sku || "").localeCompare(String(b.sku || ""));
+    switch (sortBy) {
+      case "name-desc": return -nameCompare;
+      case "sku-asc": return skuCompare;
+      case "sku-desc": return -skuCompare;
+      case "price-asc": return Number(a.selling_price || 0) - Number(b.selling_price || 0);
+      case "price-desc": return Number(b.selling_price || 0) - Number(a.selling_price || 0);
+      case "status": return Number(b.is_active) - Number(a.is_active) || nameCompare;
+      default: return nameCompare;
+    }
   });
 
   const activeCount = products.filter(p => p.is_active).length;
@@ -358,6 +604,31 @@ export default function Products({ companyId }) {
           <option value="service">Services</option>
           <option value="digital">Digital</option>
         </select>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="Sort catalogue">
+          <option value="name-asc">Name: A to Z</option>
+          <option value="name-desc">Name: Z to A</option>
+          <option value="sku-asc">SKU: A to Z</option>
+          <option value="sku-desc">SKU: Z to A</option>
+          <option value="price-asc">Price: Low to high</option>
+          <option value="price-desc">Price: High to low</option>
+          <option value="status">Active items first</option>
+        </select>
+        <button className="products-secondary" onClick={exportProducts} title="Export visible items to Excel">
+          <Download size={16} /> Export
+        </button>
+        <button className="products-secondary" onClick={downloadImportTemplate} title="Download Excel import template">
+          <Download size={16} /> Template
+        </button>
+        <button className="products-secondary" onClick={() => importInputRef.current?.click()} disabled={importing} title="Import Excel catalogue">
+          <Upload size={16} /> {importing ? "Importing..." : "Import"}
+        </button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          onChange={handleImport}
+          style={{ display: "none" }}
+        />
         <button className="products-secondary" onClick={loadData} title="Refresh">
           <RefreshCw size={17} />
         </button>
@@ -401,7 +672,9 @@ export default function Products({ companyId }) {
                 <td>
                   <div className="products-actions">
                     <button title="Edit item" onClick={() => openEdit(item)}><Pencil size={16} /></button>
-                    {item.is_active && <button title="Deactivate" onClick={() => deactivate(item)}><Power size={16} /></button>}
+                    {item.is_active
+                      ? <button title="Deactivate" onClick={() => deactivate(item)}><Power size={16} /></button>
+                      : <button title="Activate" onClick={() => activate(item)}><Power size={16} /></button>}
                   </div>
                 </td>
               </tr>

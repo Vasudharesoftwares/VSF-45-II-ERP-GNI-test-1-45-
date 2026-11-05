@@ -1,0 +1,25 @@
+.inventory-control { color: var(--text-primary, #202938); }
+.ic-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:22px; }
+.ic-heading h1 { margin:5px 0; font-size:26px; }
+.ic-heading p { margin:0; color:#718096; }
+.ic-eyebrow { color:#64748b; font-size:11px; font-weight:700; letter-spacing:1.2px; }
+.ic-refresh,.ic-tabs button,.ic-post { border:1px solid #dbe2ea; background:white; border-radius:8px; padding:9px 13px; cursor:pointer; display:inline-flex; align-items:center; gap:7px; }
+.ic-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
+.ic-tabs button.active { background:#243b63; border-color:#243b63; color:white; }
+.ic-panel { background:white; border:1px solid #e3e8ef; border-radius:12px; padding:20px; margin-bottom:18px; }
+.ic-panel h2 { display:flex; align-items:center; gap:9px; margin:0 0 18px; font-size:18px; }
+.ic-table-wrap { overflow-x:auto; }
+.ic-table-wrap table { width:100%; border-collapse:collapse; min-width:650px; }
+.ic-table-wrap th,.ic-table-wrap td { padding:11px 12px; text-align:left; border-bottom:1px solid #edf0f4; font-size:13px; }
+.ic-table-wrap th { color:#64748b; background:#f8fafc; font-weight:700; }
+.ic-empty { text-align:center!important; color:#94a3b8; padding:28px!important; }
+.ic-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; }
+.ic-form label { display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:600; color:#475569; }
+.ic-form input,.ic-form select,.ic-form textarea { width:100%; box-sizing:border-box; border:1px solid #d8e0e9; border-radius:7px; padding:10px; color:#1e293b; background:white; font:inherit; font-weight:400; }
+.ic-wide { grid-column:1/-1; }
+.ic-primary { display:inline-flex; align-items:center; gap:7px; border:0; border-radius:8px; padding:11px 16px; color:white; background:#244879; cursor:pointer; font-weight:600; }
+.ic-post { color:#1d4ed8; border-color:#bfdbfe; }
+.ic-status { display:inline-block; border-radius:20px; padding:4px 9px; font-size:11px; font-weight:700; background:#fef3c7; color:#92400e; }
+.ic-status.posted { background:#dcfce7; color:#166534; }
+.ic-note { margin:13px 0 0; color:#64748b; font-size:12px; }
+@media(max-width:700px) { .ic-heading { align-items:flex-start; flex-direction:column; } .ic-form { grid-template-columns:1fr; } .ic-wide { grid-column:auto; } }

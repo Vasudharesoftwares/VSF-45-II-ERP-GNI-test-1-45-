@@ -1,0 +1,72 @@
+.accounting-page {
+  padding: 24px;
+  color: var(--text-primary, #1f2937);
+}
+.acc-heading, .acc-report-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.acc-heading h1 { margin: 0 0 6px; font-size: 25px; }
+.acc-heading p, .acc-report-heading p { margin: 0; color: #778195; font-size: 13px; }
+.acc-tabs { display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid #e5e9f0; margin-bottom: 20px; }
+.acc-tabs button {
+  border: 0; background: transparent; padding: 12px 16px; cursor: pointer;
+  color: #647084; font-weight: 600; border-bottom: 3px solid transparent;
+}
+.acc-tabs button.active { color: #2563eb; border-bottom-color: #2563eb; }
+.acc-layout { display: grid; grid-template-columns: minmax(260px, 0.8fr) minmax(0, 2fr); gap: 18px; align-items: start; }
+.acc-journal-layout { grid-template-columns: minmax(320px, 1fr) minmax(0, 1.5fr); }
+.acc-panel {
+  background: var(--card-bg, #fff); border: 1px solid #e7eaf0; border-radius: 12px;
+  padding: 20px; min-width: 0; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.035);
+}
+.acc-panel h2 { font-size: 17px; margin: 0 0 17px; }
+.acc-form { display: flex; flex-direction: column; gap: 13px; }
+.acc-form label, .acc-line label { display: flex; flex-direction: column; gap: 6px; color: #596579; font-size: 12px; font-weight: 600; }
+.acc-form input, .acc-form select, .acc-form textarea,
+.acc-line input, .acc-line select, .acc-report-heading select {
+  width: 100%; box-sizing: border-box; border: 1px solid #dce1e9; border-radius: 7px;
+  padding: 10px 11px; background: var(--input-bg, #fff); color: inherit; font: inherit; font-size: 13px;
+}
+.acc-primary, .acc-secondary, .acc-small-button, .acc-remove {
+  border: 0; border-radius: 7px; padding: 10px 14px; font-weight: 600; cursor: pointer;
+}
+.acc-primary { background: #2563eb; color: white; margin-top: 5px; }
+.acc-primary:disabled, .acc-secondary:disabled { opacity: .55; cursor: not-allowed; }
+.acc-secondary { background: #eef2f7; color: #344054; }
+.acc-small-button { background: #e8efff; color: #2457b8; padding: 7px 11px; }
+.acc-remove { background: #fff0f0; color: #b42318; padding: 6px 9px; align-self: flex-start; }
+.acc-count { background: #eef2f7; border-radius: 20px; padding: 3px 8px; font-size: 11px; margin-left: 6px; }
+.acc-table-wrap { width: 100%; overflow-x: auto; }
+.acc-table { border-collapse: collapse; width: 100%; font-size: 12px; min-width: 540px; }
+.acc-table th, .acc-table td { padding: 11px 10px; text-align: left; border-bottom: 1px solid #edf0f4; white-space: nowrap; }
+.acc-table th { color: #687386; font-weight: 700; background: #f8fafc; }
+.acc-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.acc-table tfoot th { background: #f2f5fa; color: #263348; }
+.acc-status { display: inline-block; border-radius: 20px; padding: 4px 8px; font-size: 11px; font-weight: 700; }
+.acc-status.draft { color: #925c0b; background: #fff5dc; }
+.acc-status.posted { color: #087443; background: #e4f7ed; }
+.acc-lines-heading { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.acc-line { border:  border-radius: 8px; padding: 11px; display: flex; flex-direction: column; gap: 9px; }
+.acc-line-amounts { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.acc-totals { display: flex; flex-wrap: wrap; gap: 14px; padding: 12px; border-radius: 8px; background: #f7f9fc; font-size: 12px; }
+.acc-totals .balanced { color: #087443; font-weight: 700; }
+.acc-totals .unbalanced { color: #b42318; font-weight: 700; }
+.acc-report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 13px; }
+.acc-report-card { padding: 18px; background: #f7f9fc; border: 1px solid #e9edf3; border-radius: 9px; display: flex; flex-direction: column; gap: 10px; }
+.acc-report-card span { color: #667085; font-size: 12px; }
+.acc-report-card strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.acc-report-heading select { width: auto; min-width: 180px; }
+.acc-muted { color: #7b8494; font-size: 13px; }
+.acc-error { background: #fff0f0; color: #b42318; padding: 11px 14px; border-radius: 8px; margin-bottom: 14px; }
+@media (max-width: 1000px) {
+  .acc-layout, .acc-journal-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .accounting-page { padding: 14px; }
+  .acc-heading, .acc-report-heading { align-items: flex-start; flex-direction: column; }
+  .acc-panel { padding: 14px; }
+}

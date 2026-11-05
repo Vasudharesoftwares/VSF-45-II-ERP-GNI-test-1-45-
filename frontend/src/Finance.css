@@ -1,0 +1,39 @@
+.finance-page{padding:26px;color:var(--text,#202938)}
+.finance-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.finance-eyebrow{font-size:11px;letter-spacing:1.4px;font-weight:800;color:#64748b}
+.finance-heading h1{font-size:27px;margin:6px 0}
+.finance-heading p{color:#718096;margin:0}
+.finance-refresh,.finance-actions button{border:1px solid #d7dee8;background:white;padding:9px 13px;border-radius:8px;cursor:pointer}
+.finance-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:20px}
+.finance-stats>div,.finance-panel{background:white;border:1px solid #e5eaf0;border-radius:12px;padding:18px}
+.finance-stats span{display:block;color:#718096;font-size:13px;margin-bottom:9px}
+.finance-stats strong{font-size:22px}
+.finance-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
+.finance-tabs button{border:1px solid #dce3eb;background:#fff;padding:10px 15px;border-radius:8px;cursor:pointer}
+.finance-tabs button.active{background:#1e3a5f;color:white;border-color:#1e3a5f}
+.finance-panel h2{margin:0 0 17px;font-size:19px}
+.finance-table-wrap{overflow:auto}
+.finance-table-wrap table{width:100%;border-collapse:collapse;min-width:760px}
+.finance-table-wrap th,.finance-table-wrap td{padding:12px 10px;border-bottom:1px solid #edf0f4;text-align:left;font-size:13px}
+.finance-table-wrap th{background:#f8fafc;color:#526174;font-weight:700}
+.finance-status{padding:5px 9px;border-radius:20px;background:#edf2f7;font-size:12px}
+.finance-actions{display:flex;gap:6px}
+.finance-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.finance-form h2,.finance-wide{grid-column:1/-1}
+.finance-form label{display:flex;flex-direction:column;gap:7px;font-size:13px;font-weight:650;color:#4b5563}
+.finance-form input,.finance-form select,.finance-form textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #d6dee8;border-radius:8px;background:white;color:#202938;font:inherit}
+.finance-form textarea{min-height:80px}
+.finance-primary{grid-column:1/-1;justify-self:start;border:0;background:#1e3a5f;color:white;border-radius:8px;padding:12px 19px;font-weight:700;cursor:pointer}
+.finance-empty{color:#7b8794;padding:16px 0}
+.finance-error{padding:12px;background:#fff1f0;color:#b42318;border-radius:8px;margin-bottom:15px}
+@media(max-width:760px){.finance-page{padding:14px}.finance-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.finance-form{grid-template-columns:1fr}.finance-form h2,.finance-wide,.finance-primary{grid-column:1}.finance-heading h1{font-size:22px}}
+
+.finance-substats{margin:0 0 22px}
+.finance-substats>div{background:#f8fafc;border:1px solid #e5eaf0;border-radius:10px;padding:14px}
+.finance-panel h3{margin:22px 0 12px}
+.finance-actions button{white-space:nowrap}
+@media(max-width:760px){.finance-substats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.finance-pay-selector{display:flex;flex-wrap:wrap;gap:6px;min-width:220px}
+.finance-pay-selector select{max-width:190px;min-width:150px;padding:7px;border:1px solid #d5dce5;border-radius:7px}
+.finance-pay-selector button{font-size:12px;padding:7px 10px}

@@ -65,3 +65,15 @@
 .products-empty h2{color:#27333e}
 @media(max-width:850px){.products-page{padding:20px 15px}.products-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.products-heading h1{font-size:23px}}
 @media(max-width:560px){.products-heading{align-items:flex-start;flex-direction:column}.products-toolbar{flex-wrap:wrap}.products-search{flex-basis:100%}.products-form-grid{grid-template-columns:1fr}.products-form-grid .products-full{grid-column:auto}.products-modal{padding:18px}.products-stats{gap:8px}.products-stat{padding:12px}.products-stat strong{font-size:19px}}
+
+/* Catalogue import/export and sorting controls */
+.products-toolbar select,
+.products-toolbar button {
+  flex-shrink: 0;
+}
+.products-toolbar button {
+  white-space: nowrap;
+}
+@media(max-width:850px) {
+  .products-toolbar select { flex: 1; }
+}
