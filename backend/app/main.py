@@ -101,6 +101,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -747,7 +748,7 @@ def erp_login(payload: ERPLoginInput):
             user_id=user.id,
             token_hash=token_hash,
             company_id=assignment.company_id if assignment else None,
-            expires_at=datetime.utcnow() + timedelta(hours=12)
+            expires_at=datetime.utcnow() + timedelta(days=30)
         )
         db.add(auth_session)
         erp_audit(
@@ -760,7 +761,7 @@ def erp_login(payload: ERPLoginInput):
         return {
             "access_token": token,
             "token_type": "bearer",
-            "expires_in": 43200,
+            "expires_in": 2592000,
             "user": {
                 "id": user.id,
                 "name": user.full_name,
@@ -920,3 +921,416 @@ def erp_audit_logs(context=Depends(erp_require("reports.read"))):
         db.close()
 
 # ================= END VASUDHARE_RBAC_V1 =================
+
+# ============================================================
+# UNIVERSAL ERP - PRODUCT & SERVICE CATALOGUE
+# ============================================================
+
+from decimal import Decimal
+from sqlalchemy import Numeric, CheckConstraint, UniqueConstraint
+
+class ProductCategory(Base):
+    __tablename__ = "product_categories"
+    __table_args__ = (
+        UniqueConstraint("company_id", "code", name="uq_product_category_company_code"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    parent_id = Column(Integer, ForeignKey("product_categories.id"), nullable=True)
+    code = Column(String(50), nullable=False)
+    name = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class UnitOfMeasure(Base):
+    __tablename__ = "units_of_measure"
+    __table_args__ = (
+        UniqueConstraint("company_id", "code", name="uq_uom_company_code"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    code = Column(String(30), nullable=False)
+    name = Column(String(100), nullable=False)
+    symbol = Column(String(20), nullable=False)
+    decimal_places = Column(Integer, default=2, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Product(Base):
+    __tablename__ = "products"
+    __table_args__ = (
+        UniqueConstraint("company_id", "sku", name="uq_product_company_sku"),
+        CheckConstraint("purchase_price >= 0", name="ck_product_purchase_price"),
+        CheckConstraint("selling_price >= 0", name="ck_product_selling_price"),
+        CheckConstraint("tax_rate >= 0 AND tax_rate <= 100", name="ck_product_tax_rate"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
+    category_id = Column(Integer, ForeignKey("product_categories.id"), nullable=True)
+    unit_id = Column(Integer, ForeignKey("units_of_measure.id"), nullable=False)
+    sku = Column(String(80), nullable=False)
+    barcode = Column(String(100), nullable=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    item_type = Column(String(20), default="product", nullable=False)
+    track_inventory = Column(Boolean, default=True, nullable=False)
+    purchase_price = Column(Numeric(14, 2), default=Decimal("0.00"), nullable=False)
+    selling_price = Column(Numeric(14, 2), default=Decimal("0.00"), nullable=False)
+    tax_rate = Column(Numeric(7, 4), default=Decimal("0.0000"), nullable=False)
+    tax_inclusive = Column(Boolean, default=False, nullable=False)
+    currency = Column(String(3), default="INR", nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class ProductCategoryInput(BaseModel):
+    code: str
+    name: str
+    description: str | None = None
+    parent_id: int | None = None
+
+
+class UnitInput(BaseModel):
+    code: str
+    name: str
+    symbol: str
+    decimal_places: int = 2
+
+
+class ProductInput(BaseModel):
+    sku: str
+    name: str
+    unit_id: int
+    category_id: int | None = None
+    barcode: str | None = None
+    description: str | None = None
+    item_type: str = "product"
+    track_inventory: bool = True
+    purchase_price: Decimal = Decimal("0.00")
+    selling_price: Decimal = Decimal("0.00")
+    tax_rate: Decimal = Decimal("0.0000")
+    tax_inclusive: bool = False
+    currency: str = "INR"
+
+
+Base.metadata.create_all(bind=engine)
+
+
+def product_company_access(company_id: int, context: dict):
+    if not context.get("global_owner"):
+        assignment = context.get("assignment")
+        assigned_company = getattr(assignment, "company_id", None)
+        if assigned_company != company_id:
+            raise HTTPException(403, "You do not have access to this company.")
+
+    db = Session()
+    try:
+        company = db.query(Company).filter(
+            Company.id == company_id,
+            Company.is_active == True
+        ).first()
+        if not company:
+            raise HTTPException(404, "Company not found or inactive.")
+    finally:
+        db.close()
+
+
+def product_output(p):
+    return {
+        "id": p.id,
+        "company_id": p.company_id,
+        "sku": p.sku,
+        "barcode": p.barcode,
+        "name": p.name,
+        "description": p.description,
+        "item_type": p.item_type,
+        "category_id": p.category_id,
+        "unit_id": p.unit_id,
+        "track_inventory": p.track_inventory,
+        "purchase_price": str(p.purchase_price),
+        "selling_price": str(p.selling_price),
+        "tax_rate": str(p.tax_rate),
+        "tax_inclusive": p.tax_inclusive,
+        "currency": p.currency,
+        "is_active": p.is_active,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+    }
+
+
+@app.get("/api/core/companies/{company_id}/product-categories")
+def product_categories_list(
+    company_id: int,
+    context=Depends(erp_current_context)
+):
+    product_company_access(company_id, context)
+    db = Session()
+    try:
+        rows = db.query(ProductCategory).filter(
+            ProductCategory.company_id == company_id
+        ).order_by(ProductCategory.name).all()
+        return [{
+            "id": x.id, "code": x.code, "name": x.name,
+            "description": x.description, "parent_id": x.parent_id,
+            "is_active": x.is_active
+        } for x in rows]
+    finally:
+        db.close()
+
+
+@app.post("/api/core/companies/{company_id}/product-categories")
+def product_category_create(
+    company_id: int,
+    payload: ProductCategoryInput,
+    context=Depends(erp_current_context)
+):
+    product_company_access(company_id, context)
+    db = Session()
+    try:
+        if payload.parent_id:
+            parent = db.query(ProductCategory).filter_by(
+                id=payload.parent_id, company_id=company_id
+            ).first()
+            if not parent:
+                raise HTTPException(400, "Parent category does not belong to this company.")
+
+        row = ProductCategory(
+            company_id=company_id,
+            code=payload.code.strip().upper(),
+            name=payload.name.strip(),
+            description=payload.description,
+            parent_id=payload.parent_id
+        )
+        db.add(row)
+        try:
+            db.commit()
+            db.refresh(row)
+        except Exception:
+            db.rollback()
+            raise HTTPException(409, "Category code already exists or data is invalid.")
+        return {"id": row.id, "code": row.code, "name": row.name}
+    finally:
+        db.close()
+
+
+@app.get("/api/core/companies/{company_id}/units")
+def units_list(
+    company_id: int,
+    context=Depends(erp_current_context)
+):
+    product_company_access(company_id, context)
+    db = Session()
+    try:
+        rows = db.query(UnitOfMeasure).filter(
+            UnitOfMeasure.company_id == company_id
+        ).order_by(UnitOfMeasure.name).all()
+        return [{
+            "id": x.id, "code": x.code, "name": x.name,
+            "symbol": x.symbol, "decimal_places": x.decimal_places,
+            "is_active": x.is_active
+        } for x in rows]
+    finally:
+        db.close()
+
+
+@app.post("/api/core/companies/{company_id}/units")
+def unit_create(
+    company_id: int,
+    payload: UnitInput,
+    context=Depends(erp_current_context)
+):
+    product_company_access(company_id, context)
+    if payload.decimal_places < 0 or payload.decimal_places > 6:
+        raise HTTPException(400, "Decimal places must be between 0 and 6.")
+
+    db = Session()
+    try:
+        row = UnitOfMeasure(
+            company_id=company_id,
+            code=payload.code.strip().upper(),
+            name=payload.name.strip(),
+            symbol=payload.symbol.strip(),
+            decimal_places=payload.decimal_places
+        )
+        db.add(row)
+        try:
+            db.commit()
+            db.refresh(row)
+        except Exception:
+            db.rollback()
+            raise HTTPException(409, "Unit code already exists or data is invalid.")
+        return {"id": row.id, "code": row.code, "name": row.name, "symbol": row.symbol}
+    finally:
+        db.close()
+
+
+@app.get("/api/core/companies/{company_id}/products")
+def products_list(
+    company_id: int,
+    search: str | None = None,
+    item_type: str | None = None,
+    active: bool | None = None,
+    limit: int = 100,
+    offset: int = 0,
+    context=Depends(erp_current_context)
+):
+    product_company_access(company_id, context)
+    limit = max(1, min(limit, 500))
+    offset = max(0, offset)
+
+    db = Session()
+    try:
+        query = db.query(Product).filter(Product.company_id == company_id)
+        if search:
+            term = f"%{search.strip()}%"
+            query = query.filter(
+                (Product.name.ilike(term)) |
+                (Product.sku.ilike(term)) |
+                (Product.barcode.ilike(term))
+            )
+        if item_type:
+            query = query.filter(Product.item_type == item_type)
+        if active is not None:
+            query = query.filter(Product.is_active == active)
+
+        total = query.count()
+        rows = query.order_by(Product.name).offset(offset).limit(limit).all()
+        return {"items": [product_output(p) for p in rows], "total": total,
+                "limit": limit, "offset": offset}
+    finally:
+        db.close()
+
+
+@app.post("/api/core/companies/{company_id}/products")
+def product_create(
+    company_id: int,
+    payload: ProductInput,
+    context=Depends(erp_current_context)
+):
+    product_company_access(company_id, context)
+
+    if payload.item_type not in ("product", "service", "digital"):
+        raise HTTPException(400, "item_type must be product, service, or digital.")
+    if payload.item_type != "product" and payload.track_inventory:
+        raise HTTPException(400, "Services and digital items cannot track physical inventory.")
+    if payload.purchase_price < 0 or payload.selling_price < 0:
+        raise HTTPException(400, "Prices cannot be negative.")
+    if payload.tax_rate < 0 or payload.tax_rate > 100:
+        raise HTTPException(400, "Tax rate must be between 0 and 100.")
+
+    db = Session()
+    try:
+        unit = db.query(UnitOfMeasure).filter_by(
+            id=payload.unit_id, company_id=company_id, is_active=True
+        ).first()
+        if not unit:
+            raise HTTPException(400, "Select an active unit belonging to this company.")
+
+        if payload.category_id:
+            category = db.query(ProductCategory).filter_by(
+                id=payload.category_id, company_id=company_id, is_active=True
+            ).first()
+            if not category:
+                raise HTTPException(400, "Category does not belong to this company.")
+
+        row = Product(
+            company_id=company_id,
+            category_id=payload.category_id,
+            unit_id=payload.unit_id,
+            sku=payload.sku.strip().upper(),
+            barcode=payload.barcode,
+            name=payload.name.strip(),
+            description=payload.description,
+            item_type=payload.item_type,
+            track_inventory=payload.track_inventory,
+            purchase_price=payload.purchase_price,
+            selling_price=payload.selling_price,
+            tax_rate=payload.tax_rate,
+            tax_inclusive=payload.tax_inclusive,
+            currency=payload.currency.strip().upper()
+        )
+        db.add(row)
+        try:
+            db.commit()
+            db.refresh(row)
+        except Exception:
+            db.rollback()
+            raise HTTPException(409, "SKU already exists for this company or product data is invalid.")
+        return product_output(row)
+    finally:
+        db.close()
+
+
+@app.put("/api/core/products/{product_id}")
+def product_update(
+    product_id: int,
+    payload: ProductInput,
+    context=Depends(erp_current_context)
+):
+    db = Session()
+    try:
+        row = db.query(Product).filter_by(id=product_id).first()
+        if not row:
+            raise HTTPException(404, "Product not found.")
+        product_company_access(row.company_id, context)
+
+        if payload.item_type not in ("product", "service", "digital"):
+            raise HTTPException(400, "Invalid item type.")
+        if payload.item_type != "product" and payload.track_inventory:
+            raise HTTPException(400, "Services and digital items cannot track physical inventory.")
+        if payload.purchase_price < 0 or payload.selling_price < 0:
+            raise HTTPException(400, "Prices cannot be negative.")
+        if payload.tax_rate < 0 or payload.tax_rate > 100:
+            raise HTTPException(400, "Tax rate must be between 0 and 100.")
+
+        unit = db.query(UnitOfMeasure).filter_by(
+            id=payload.unit_id, company_id=row.company_id, is_active=True
+        ).first()
+        if not unit:
+            raise HTTPException(400, "Invalid unit for this company.")
+
+        if payload.category_id:
+            category = db.query(ProductCategory).filter_by(
+                id=payload.category_id, company_id=row.company_id, is_active=True
+            ).first()
+            if not category:
+                raise HTTPException(400, "Invalid category for this company.")
+
+        for field, value in payload.model_dump().items():
+            setattr(row, field, value.strip().upper() if field in ("sku", "currency") else value)
+        row.updated_at = datetime.utcnow()
+        try:
+            db.commit()
+            db.refresh(row)
+        except Exception:
+            db.rollback()
+            raise HTTPException(409, "SKU already exists or product data is invalid.")
+        return product_output(row)
+    finally:
+        db.close()
+
+
+@app.patch("/api/core/products/{product_id}/deactivate")
+def product_deactivate(
+    product_id: int,
+    context=Depends(erp_current_context)
+):
+    db = Session()
+    try:
+        row = db.query(Product).filter_by(id=product_id).first()
+        if not row:
+            raise HTTPException(404, "Product not found.")
+        product_company_access(row.company_id, context)
+        row.is_active = False
+        row.updated_at = datetime.utcnow()
+        db.commit()
+        return {"success": True, "message": "Product deactivated.", "id": row.id}
+    finally:
+        db.close()

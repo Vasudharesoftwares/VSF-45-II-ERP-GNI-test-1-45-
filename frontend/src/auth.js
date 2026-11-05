@@ -4,12 +4,12 @@ const TOKEN_KEY = "vasudhare_access_token";
 const USER_KEY = "vasudhare_current_user";
 
 export function getToken() {
-  return sessionStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(TOKEN_KEY);
 }
 
 export function getStoredUser() {
   try {
-    return JSON.parse(sessionStorage.getItem(USER_KEY) || "null");
+    return JSON.parse(localStorage.getItem(USER_KEY) || "null");
   } catch {
     return null;
   }
@@ -20,13 +20,13 @@ function saveSession(data) {
     throw new Error("Invalid authentication response");
   }
 
-  sessionStorage.setItem(TOKEN_KEY, data.access_token);
-  sessionStorage.setItem(USER_KEY, JSON.stringify(data.user));
+  localStorage.setItem(TOKEN_KEY, data.access_token);
+  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
 }
 
 export function clearSession() {
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(USER_KEY);
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 export async function login(email, password, companyId = null) {
@@ -83,7 +83,7 @@ export async function getCurrentUser() {
   }
 
   const user = await response.json();
-  sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
   return user;
 }
 

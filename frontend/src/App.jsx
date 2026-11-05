@@ -8,6 +8,10 @@ import {
 import "./index.css";
 import Calculators from "./Calculators";
 
+import Products from "./Products";
+import Login from "./Login";
+import { getCurrentUser, logout } from "./auth";
+import { showSuccess, showError, showWarning, showConfirm } from "./utils/alerts";
 const API = "http://127.0.0.1:8000";
 
 const modules = [
@@ -115,8 +119,8 @@ function Status({ value }) {
   return <span className={`status ${cls}`}>{value}</span>;
 }
 
-function App() {
-  const [active, setActive] = useState("dashboard");
+function Workspace({ onLogout }) {
+  const [active, setActive] = useState(() => { try { return localStorage.getItem("vsf_active_page") || "dashboard"; } catch { return "dashboard"; } });
   const [records, setRecords] = useState([]);
   const [dashboard, setDashboard] = useState({});
   const [loading, setLoading] = useState(false);
@@ -126,7 +130,7 @@ function App() {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
-  const [notice, setNotice] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const loadDashboard = async () => {
     try {
@@ -174,6 +178,25 @@ function App() {
 
   const save = async (e) => {
     e.preventDefault();
+    if (saving) return;
+
+    const formElement = e.currentTarget;
+    if (!formElement.checkValidity()) {
+      const invalid = formElement.querySelector(":invalid");
+      showWarning("Please check the form", invalid?.validationMessage || "Please correct the highlighted fields.");
+      invalid?.focus();
+      return;
+    }
+
+    const missingField = config.fields.find(([key, label, type, required]) =>
+      required && String(form[key] ?? "").trim() === ""
+    );
+    if (missingField) {
+      showWarning("Required field missing", `Please enter ${missingField[1]}.`);
+      return;
+    }
+
+    setSaving(true);
     setError("");
     try {
       const url = editing
@@ -186,34 +209,44 @@ function App() {
       });
       if (!res.ok) throw new Error("Could not save record");
       setModal(false);
-      setNotice(editing ? "Record updated successfully." : "Record created successfully.");
+      showSuccess(
+        editing ? "Record updated successfully" : "Record created successfully"
+      );
       await loadRecords();
       await loadDashboard();
     } catch (e) {
-      setError(e.message);
+      showError("Save failed", e.message);
+    } finally {
+      setSaving(false);
     }
   };
 
   const remove = async (id) => {
-    if (!window.confirm("Delete this record permanently?")) return;
+    const confirmed = await showConfirm(
+      "Delete this record?",
+      "This record will be permanently deleted. This action cannot be undone.",
+      "Yes, delete"
+    );
+    if (!confirmed) return;
     try {
       const res = await fetch(`${API}/api/${active}/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       await loadRecords();
       await loadDashboard();
-      setNotice("Record deleted.");
+      showSuccess("Record deleted successfully");
     } catch (e) {
-      setError(e.message);
+      showError("Delete failed", e.message);
     }
   };
 
   const exportOrder = (id) => window.open(`${API}/api/orders/${id}/pdf`, "_blank");
 
   const go = (id) => {
+  try { localStorage.setItem("vsf_active_page", id); } catch {}
+
     setActive(id);
     setSearch("");
     setMobileOpen(false);
-    setNotice("");
     setError("");
   };
 
@@ -260,15 +293,15 @@ function App() {
           <div className="top-actions">
             <div className="global-search"><Search size={16}/><input placeholder="Search records..." value={search} onChange={e => setSearch(e.target.value)}/></div>
             <button className="bell"><Bell size={19}/></button>
+            <button className="auth-signout" onClick={onLogout}>Sign out</button>
             <div className="avatar">AD</div>
           </div>
         </header>
 
         <div className="content">
           {error && <div className="alert error">{error}</div>}
-          {notice && <div className="alert success"><CheckCircle2 size={16}/>{notice}<button onClick={() => setNotice("")}>×</button></div>}
 
-          {active === "dashboard" ? (
+          {active === "inventory" ? (<Products />) : active === "dashboard" ? (
             <>
               <div className="page-heading">
                 <div><label>BUSINESS OVERVIEW</label><h1>Good morning, Administrator</h1><p>Here is what's happening in your business today.</p></div>
@@ -351,7 +384,7 @@ function App() {
 
       {modal && config && (
         <div className="modal-backdrop" onMouseDown={e => {if(e.target === e.currentTarget) setModal(false);}}>
-          <form className="modal" onSubmit={save}>
+          <form className="modal" onSubmit={save} noValidate>
             <div className="modal-heading"><div><h2>{editing ? "Edit Record" : config.action}</h2><p>Enter the information below.</p></div><button type="button" className="close-modal" onClick={() => setModal(false)}><X/></button></div>
             <div className="form-grid">
               {config.fields.map(([key,label,type,required,options]) => (
@@ -363,12 +396,91 @@ function App() {
                 </label>
               ))}
             </div>
-            <div className="modal-actions"><button type="button" className="secondary" onClick={() => setModal(false)}>Cancel</button><button className="primary" type="submit">{editing ? "Save Changes" : "Save Record"}</button></div>
+            <div className="modal-actions"><button type="button" className="secondary" onClick={() => setModal(false)}>Cancel</button><button className="primary" type="submit" disabled={saving}>{saving ? "Saving..." : editing ? "Save Changes" : "Save Record"}</button></div>
           </form>
         </div>
       )}
     </div>
   );
+}
+
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [checking, setChecking] = useState(true);
+  const [authError, setAuthError] = useState("");
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function verifySession() {
+      try {
+        const currentUser = await getCurrentUser();
+        if (mounted) setUser(currentUser);
+      } catch (error) {
+        if (mounted) setAuthError("Unable to contact the server. Please check that the backend is running.");
+      } finally {
+        if (mounted) setChecking(false);
+      }
+    }
+
+    const handleExpired = () => {
+      if (mounted) {
+        setUser(null);
+        setAuthError("Your session has expired. Please sign in again.");
+      }
+    };
+
+    window.addEventListener("vasudhare:session-expired", handleExpired);
+    verifySession();
+
+    return () => {
+      mounted = false;
+      window.removeEventListener("vasudhare:session-expired", handleExpired);
+    };
+  }, []);
+
+  function handleLogin(loggedInUser) {
+    setUser(loggedInUser);
+    setAuthError("");
+  }
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } finally {
+      setUser(null);
+      setAuthError("");
+    }
+  }
+
+  if (checking) {
+    return <div style={{
+      minHeight: "100vh",
+      display: "grid",
+      placeItems: "center",
+      fontFamily: "Arial, sans-serif",
+      color: "#334155"
+    }}>Verifying secure workspace access...</div>;
+  }
+
+  if (!user) {
+    return (
+      <>
+        {authError && (
+          <div role="alert" style={{
+            padding: "12px 20px",
+            color: "#991b1b",
+            background: "#fee2e2",
+            textAlign: "center"
+          }}>{authError}</div>
+        )}
+        <Login onLogin={handleLogin} />
+      </>
+    );
+  }
+
+  return <Workspace onLogout={handleLogout} />;
 }
 
 function RecentOrders() {
