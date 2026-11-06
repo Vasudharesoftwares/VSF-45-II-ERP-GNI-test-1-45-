@@ -1,168 +1,222 @@
 import { useState } from "react";
-import { Calculator, IndianRupee, Factory, Gauge, Weight, Zap, TrendingUp, Users } from "lucide-react";
+import "./Calculators.css";
+import {
+  Calculator, IndianRupee, Factory, Gauge, Weight,
+  Zap, TrendingUp, Clock3, Activity
+} from "lucide-react";
 
-function Card({ title, icon: Icon, children, result, note }) {
-  return (
-    <section className="panel" style={{ padding: 20, minWidth: 0 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-        <Icon size={21} color="#16865b" />
-        <h3 style={{ margin: 0 }}>{title}</h3>
-      </div>
-      <div style={{ display: "grid", gap: 12 }}>{children}</div>
-      <div style={{ background: "#edf8f2", borderRadius: 9, padding: 13, marginTop: 18 }}>
-        <small style={{ color: "#527363" }}>CALCULATED RESULT</small>
-        <h2 style={{ color: "#16865b", margin: "5px 0" }}>{result}</h2>
-        {note && <small style={{ color: "#527363" }}>{note}</small>}
-      </div>
-    </section>
-  );
-}
+const number = value => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
 
-function Field({ label, value, onChange, unit = "", step = "any" }) {
+const money = value =>
+  "₹" + value.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+function Field({ label, value, onChange, unit, min = 0, max, step = "any" }) {
   return (
-    <label style={{ display: "grid", gap: 6, fontSize: 13, color: "#52645b" }}>
-      {label}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <label className="machine-field">
+      <span>{label}</span>
+      <div className="machine-input-wrap">
         <input
           type="number"
-          min="0"
+          min={min}
+          max={max}
           step={step}
           value={value}
           onChange={e => onChange(e.target.value)}
-          style={{ width: "100%", minWidth: 0, padding: "10px 12px", border: "1px solid #dce6df", borderRadius: 7 }}
         />
-        {unit && <span>{unit}</span>}
+        {unit && <small>{unit}</small>}
       </div>
     </label>
   );
 }
 
-const num = v => Math.max(0, Number(v) || 0);
-const money = v => "₹" + v.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+function Result({ value, note }) {
+  return (
+    <div className="machine-result">
+      <span>CALCULATED RESULT</span>
+      <strong>{value}</strong>
+      {note && <small>{note}</small>}
+    </div>
+  );
+}
+
+function Card({ title, icon: Icon, children, result, note }) {
+  return (
+    <section className="panel machine-card">
+      <div className="machine-card-heading">
+        <span className="machine-icon"><Icon size={20} /></span>
+        <h3>{title}</h3>
+      </div>
+      <div className="machine-fields">{children}</div>
+      <Result value={result} note={note} />
+    </section>
+  );
+}
 
 export default function Calculators() {
-  const [tab, setTab] = useState("business");
-
-  const [qty, setQty] = useState("100");
-  const [rate, setRate] = useState("100");
-  const [discount, setDiscount] = useState("0");
-  const [gst, setGst] = useState("18");
-  const subtotal = num(qty) * num(rate) * (1 - num(discount) / 100);
-  const gstAmount = subtotal * num(gst) / 100;
-
-  const [materialQty, setMaterialQty] = useState("100");
-  const [materialRate, setMaterialRate] = useState("50");
-  const [labour, setLabour] = useState("1000");
-  const [overhead, setOverhead] = useState("500");
-  const materialCost = num(materialQty) * num(materialRate);
-  const totalCost = materialCost + num(labour) + num(overhead);
-
-  const [cost, setCost] = useState("10000");
-  const [selling, setSelling] = useState("15000");
-  const profit = num(selling) - num(cost);
-
-  const [salary, setSalary] = useState("15000");
-  const [days, setDays] = useState("26");
-  const [worked, setWorked] = useState("26");
-  const [overtime, setOvertime] = useState("0");
-  const daily = num(days) ? num(salary) / num(days) : 0;
-  const salaryTotal = daily * num(worked) + daily / 8 * num(overtime) * 1.5;
-
-  const [capacity, setCapacity] = useState("5");
+  const [capacity, setCapacity] = useState("50");
   const [hours, setHours] = useState("8");
   const [efficiency, setEfficiency] = useState("85");
 
   const [voltage, setVoltage] = useState("415");
-  const [amps, tAmps] = useState("10");
+  const [amps, setAmps] = useState("10");
   const [pf, setPf] = useState("0.85");
   const [powerHours, setPowerHours] = useState("8");
-  const kw = Math.sqrt(3) * num(voltage) * num(amps) * num(pf) / 1000;
 
-  const [kg, setKg] = useState("1000");
-  const [unit, setUnit] = useState("kg");
+  const [tariff, setTariff] = useState("8.50");
+  const [machines, setMachines] = useState("1");
+
+  const [weight, setWeight] = useState("1000");
+  const [weightUnit, setWeightUnit] = useState("kg");
 
   const [planned, setPlanned] = useState("1000");
   const [produced, setProduced] = useState("850");
 
+  const [cycle, setCycle] = useState("45");
+  const [cycleHours, setCycleHours] = useState("8");
+  const [cycleEfficiency, setCycleEfficiency] = useState("85");
+
+  const validEfficiency = Math.min(number(efficiency), 100);
+  const output = number(capacity) * number(hours) * validEfficiency / 100;
+
+  const validPf = Math.min(number(pf), 1);
+  const kw = Math.sqrt(3) * number(voltage) * number(amps) * validPf / 1000;
+  const energy = kw * number(powerHours);
+  const runningCost = energy * number(tariff) * number(machines);
+
+  const kgValue = number(weight);
+  const convertedWeight = weightUnit === "kg" ? kgValue / 1000 : kgValue * 1000;
+
+  const plan = number(planned);
+  const actual = number(produced);
+  const productionEfficiency = plan ? actual / plan * 100 : 0;
+  const wastage = Math.max(plan - actual, 0);
+  const excess = Math.max(actual - plan, 0);
+
+  const cycleOutput = number(cycle)
+    ? (3600 / number(cycle)) * number(cycleHours) *
+      Math.min(number(cycleEfficiency), 100) / 100
+    : 0;
+
   return (
-    <div>
+    <div className="machine-calculators">
       <div className="page-heading">
         <div>
-          <label>BUSINESS TOOLS</label>
-          <h1>Calculators</h1>
-          <p>Quick calculations for business operations and machinery.</p>
+          <label>FACTORY OPERATIONS TOOLS</label>
+          <h1>Machinery Calculators</h1>
+          <p>Calculate machine capacity, electrical consumption, running costs and production performance.</p>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 20 }}>
-        <button className={tab === "business" ? "primary" : "secondary"} onClick={() => setTab("business")}>
-          <IndianRupee size={16} /> Business Calculators
-        </button>
-        <button className={tab === "machinery" ? "primary" : "secondary"} onClick={() => setTab("machinery")}>
-          <Factory size={16} /> Machinery Calculators
-        </button>
+      <div className="machine-intro">
+        <div>
+          <Factory size={23} />
+          <div>
+            <strong>Production & Engineering</strong>
+            <span>Enter your machine specifications to calculate operating estimates.</span>
+          </div>
+        </div>
+        <span className="machine-live-label">LIVE CALCULATIONS</span>
       </div>
 
-      {tab === "business" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,280px),1fr))", gap: 16 }}>
-          <Card title="Order & GST Calculator" icon={Calculator} result={money(subtotal + gstAmount)} note={`Subtotal ${money(subtotal)} · GST ${money(gstAmount)}`}>
-            <Field label="Quantity" value={qty} onChange={setQty} />
-            <Field label="Rate per unit (₹)" value={rate} onChange={setRate} />
-            <Field label="Discount (%)" value={discount} onChange={setDiscount} />
-            <Field label="GST (%)" value={gst} onChange={setGst} />
-          </Card>
+      <div className="machine-grid">
+        <Card
+          title="Machine Production Capacity"
+          icon={Gauge}
+          result={`${output.toLocaleString("en-IN", { maximumFractionDigits: 2 })} units`}
+          note="Estimated production for the entered shift duration"
+        >
+          <Field label="Rated machine capacity" value={capacity} onChange={setCapacity} unit="units/hour" />
+          <Field label="Operating duration" value={hours} onChange={setHours} unit="hours" />
+          <Field label="Machine efficiency" value={efficiency} onChange={v => setEfficiency(String(Math.min(Number(v) || 0, 100)))} unit="%" max="100" />
+        </Card>
 
-          <Card title="Material & Production Cost" icon={Factory} result={money(totalCost)} note={`Material ${money(materialCost)} + labour + overhead`}>
-            <Field label="Material quantity" value={materialQty} onChange={setMaterialQty} />
-            <Field label="Material rate (₹)" value={materialRate} onChange={setMaterialRate} />
-            <Field label="Labour cost (₹)" value={labour} onChange={setLabour} />
-            <Field label="Other overhead (₹)" value={overhead} onChange={setOverhead} />
-          </Card>
+        <Card
+          title="Three-Phase Power Consumption"
+          icon={Zap}
+          result={`${energy.toFixed(2)} kWh`}
+          note={`Estimated connected load: ${kw.toFixed(2)} kW`}
+        >
+          <Field label="Line voltage" value={voltage} onChange={setVoltage} unit="V" />
+          <Field label="Current" value={amps} onChange={setAmps} unit="A" />
+          <Field label="Power factor" value={pf} onChange={v => setPf(String(Math.min(Number(v) || 0, 1)))} min="0" max="1" step="0.01" />
+          <Field label="Operating duration" value={powerHours} onChange={setPowerHours} unit="hours" />
+        </Card>
 
-          <Card title="Profit & Margin" icon={TrendingUp} result={money(profit)} note={`Profit margin: ${num(selling) ? (profit / num(selling) * 100).toFixed(2) : "0.00"}%`}>
-            <Field label="Total cost (₹)" value={cost} onChange={setCost} />
-            <Field label="Selling price (₹)" value={selling} onChange={setSelling} />
-          </Card>
+        <Card
+          title="Machine Electricity Cost"
+          icon={IndianRupee}
+          result={money(runningCost)}
+          note={`${energy.toFixed(2)} kWh per machine × ${number(machines)} machine(s)`}
+        >
+          <Field label="Energy consumption per machine" value={powerHours} onChange={setPowerHours} unit="hours" />
+          <Field label="Electricity tariff" value={tariff} onChange={setTariff} unit="₹/kWh" step="0.01" />
+          <Field label="Number of machines" value={machines} onChange={setMachines} unit="machines" step="1" />
+          <small className="machine-hint">Uses the three-phase power inputs above.</small>
+        </Card>
 
-          <Card title="Salary & Overtime" icon={Users} result={money(salaryTotal)} note={`Daily basic rate: ${money(daily)}`}>
-            <Field label="Monthly salary (₹)" value={salary} onChange={setSalary} />
-            <Field label="Standard working days" value={days} onChange={setDays} />
-            <Field label="Days worked" value={worked} onChange={setWorked} />
-            <Field label="Overtime hours (1.5×)" value={overtime} onChange={setOvertime} />
-          </Card>
-        </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,280px),1fr))", gap: 16 }}>
-          <Card title="Machine Capacity" icon={Gauge} result={`${(num(capacity) * num(hours) * num(efficiency) / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })} units`} note="Estimated output per shift">
-            <Field label="Rated capacity per hour" value={capacity} onChange={setCapacity} unit="units/hr" />
-            <Field label="Operating hours" value={hours} onChange={setHours} unit="hours" />
-            <Field label="Efficiency" value={efficiency} onChange={setEfficiency} unit="%" />
-          </Card>
-
-          <Card title="Power Consumption" icon={Zap} result={`${(kw * num(powerHours)).toFixed(2)} kWh`} note={`Estimated load: ${kw.toFixed(2)} kW`}>
-            <Field label="Voltage (3-phase)" value={voltage} onChange={setVoltage} unit="V" />
-            <Field label="Current" value={amps} onChange={setAmps} unit="A" />
-            <Field label="Power factor" value={pf} onChange={setPf} />
-            <Field label="Operating hours" value={powerHours} onChange={setPowerHours} unit="hours" />
-          </Card>
-
-          <Card title="Weight Converter" icon={Weight} result={unit === "kg" ? `${num(kg).toLocaleString("en-IN")} kg = ${(num(kg) / 1000).toLocaleString("en-IN")} tonnes` : `${num(kg).toLocaleString("en-IN")} tonnes = ${(num(kg) * 1000).toLocaleString("en-IN")} kg`}>
-            <Field label={unit === "kg" ? "Weight in kilograms" : "Weight in tonnes"} value={kg} onChange={setKg} />
-            <select value={unit} onChange={e => setUnit(e.target.value)} style={{ padding: 10, borderRadius: 7, border: "1px solid #dce6df" }}>
+        <Card
+          title="Weight Converter"
+          icon={Weight}
+          result={weightUnit === "kg"
+            ? `${convertedWeight.toLocaleString("en-IN", { maximumFractionDigits: 3 })} tonnes`
+            : `${convertedWeight.toLocaleString("en-IN", { maximumFractionDigits: 3 })} kg`}
+          note="Metric weight conversion"
+        >
+          <Field
+            label={weightUnit === "kg" ? "Weight in kilograms" : "Weight in tonnes"}
+            value={weight}
+            onChange={setWeight}
+            unit={weightUnit === "kg" ? "kg" : "tonnes"}
+          />
+          <label className="machine-field">
+            <span>Conversion direction</span>
+            <select value={weightUnit} onChange={e => setWeightUnit(e.target.value)}>
               <option value="kg">Kilograms to tonnes</option>
               <option value="tonnes">Tonnes to kilograms</option>
             </select>
-          </Card>
+          </label>
+        </Card>
 
-          <Card title="Production Output & Efficiency" icon={Factory} result={`${(num(planned) ? num(produced) / num(planned) * 100 : 0).toFixed(2)}%`} note={`${num(produced).toLocaleString("en-IN")} produced out of ${num(planned).toLocaleString("en-IN")} planned`}>
-            <Field label="Planned production" value={planned} onChange={setPlanned} />
-            <Field label="Actual production" value={produced} onChange={setProduced} />
-          </Card>
-        </div>
-      )}
-      <p style={{ color: "#718078", fontSize: 12, marginTop: 18 }}>
-        Results are estimates. Confirm machine ratings, electrical specifications, applicable GST and company payroll rules before using calculations for official decisions.
-      </p>
+        <Card
+          title="Production Efficiency & Wastage"
+          icon={TrendingUp}
+          result={`${productionEfficiency.toFixed(2)}%`}
+          note={`${actual.toLocaleString("en-IN")} actual units against ${plan.toLocaleString("en-IN")} planned units`}
+        >
+          <Field label="Planned production" value={planned} onChange={setPlanned} unit="units" />
+          <Field label="Actual production" value={produced} onChange={setProduced} unit="units" />
+          <div className="machine-metric-row">
+            <span>Shortfall</span><strong>{wastage.toLocaleString("en-IN")} units</strong>
+          </div>
+          {excess > 0 && (
+            <div className="machine-metric-row">
+              <span>Above target</span><strong>{excess.toLocaleString("en-IN")} units</strong>
+            </div>
+          )}
+        </Card>
+
+        <Card
+          title="Machine Cycle-Time Output"
+          icon={Clock3}
+          result={`${cycleOutput.toLocaleString("en-IN", { maximumFractionDigits: 2 })} units`}
+          note="Estimated output for the entered operating period"
+        >
+          <Field label="Cycle time per unit" value={cycle} onChange={setCycle} unit="seconds" />
+          <Field label="Operating duration" value={cycleHours} onChange={setCycleHours} unit="hours" />
+          <Field label="Operating efficiency" value={cycleEfficiency} onChange={v => setCycleEfficiency(String(Math.min(Number(v) || 0, 100)))} unit="%" max="100" />
+        </Card>
+      </div>
+
+      <div className="machine-disclaimer">
+        <Activity size={16} />
+        <span>These are engineering estimates. Verify actual machine ratings, measured current, power factor, cycle time and electricity tariff before using results for production or financial decisions.</span>
+      </div>
     </div>
   );
 }

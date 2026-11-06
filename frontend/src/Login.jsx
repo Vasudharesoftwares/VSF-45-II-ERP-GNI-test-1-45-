@@ -1,23 +1,23 @@
 import { useState } from "react";
 import { login } from "./auth";
+import { showSuccess, showError } from "./utils/alerts";
 import "./Login.css";
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setError("");
     setLoading(true);
 
     try {
       const user = await login(email, password);
+      await showSuccess("Welcome back!", "You have signed in successfully.");
       onLogin?.(user);
     } catch (err) {
-      setError(err.message || "Unable to sign in. Please try again.");
+      await showError("Sign in failed", err.message || "Unable to sign in. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -65,7 +65,6 @@ export default function Login({ onLogin }) {
             />
           </label>
 
-          {error && <div className="erp-login-error" role="alert">{error}</div>}
 
           <button type="submit" disabled={loading}>
             {loading ? "Signing in..." : "Sign in to workspace"}

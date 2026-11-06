@@ -16,3 +16,46 @@ table{border-collapse:collapse;width:100%;min-width:540px;text-align:left}th{bac
 .menu-button,.close-menu{display:none}.overlay{display:none}
 @media(max-width:1000px){.sidebar{width:225px}.main{margin-left:225px}.content{padding:24px}.stat-grid{grid-template-columns:repeat(2,1fr)}.dashboard-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.sidebar{width:270px;transform:translateX(-100%);transition:transform .2s;box-shadow:10px 0 35px #102a2015}.sidebar.open{transform:translateX(0)}.overlay{display:block;position:fixed;inset:0;background:#102a204d;z-index:9}.main{margin-left:0}.topbar{height:60px;padding:0 14px}.menu-button{display:inline-flex;border:0;background:transparent;color:#52636d}.close-menu{display:inline-flex;margin-left:auto;border:0;background:transparent;color:#71808a}.top-left{gap:10px;font-size:10px}.global-search{width:35px;border:0;padding:0}.global-search input{display:none}.top-actions{gap:8px}.content{padding:22px 14px}.page-heading{align-items:flex-start;flex-direction:column}.page-heading h1{font-size:22px}.page-heading>.primary{width:100%}.stat-grid{gap:10px}.stat-card{padding:14px;min-height:125px}.stat-value{font-size:22px}.module-shortcuts{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:1fr}.form-grid .full-field{grid-column:auto}.modal{padding:18px}.panel-heading{padding:15px}.module-toolbar{margin-top:10px}}
+
+
+/* ERP SIGN OUT BUTTON DESIGN FIX */
+.auth-signout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #e7ecef;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #63737d;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.auth-signout:hover {
+  background: #eaf6f0;
+  border-color: #d4e9df;
+  color: #14764f;
+}
+
+.auth-signout:focus-visible {
+  outline: 2px solid #16865d;
+  outline-offset: 2px;
+}
+
+.auth-signout:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 700px) {
+  .auth-signout {
+    min-height: 34px;
+    padding: 0 9px;
+    font-size: 10px;
+  }
+}

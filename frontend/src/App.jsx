@@ -471,11 +471,32 @@ function App() {
   }
 
   async function handleLogout() {
+    const confirmed = await showConfirm(
+      "Sign out?",
+      "Are you sure you want to sign out of your workspace?",
+      "Yes, sign out"
+    );
+
+    if (!confirmed) return;
+
+    let logoutError = null;
+
     try {
       await logout();
+    } catch (err) {
+      logoutError = err;
     } finally {
       setUser(null);
       setAuthError("");
+    }
+
+    if (logoutError) {
+      await showError(
+        "Sign out completed locally",
+        logoutError.message || "Your session was closed on this device."
+      );
+    } else {
+      await showSuccess("Signed out", "You have been securely signed out.");
     }
   }
 
